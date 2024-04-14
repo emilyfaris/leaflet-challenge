@@ -79,7 +79,7 @@ d3.json(url).then((data) => {
 let legend = L.control({position: 'bottomright'});
 
 legend.onAdd = function (map) {
-    var div = L.DomUtil.create('div', 'info legend'),
+    let div = L.DomUtil.create('div', 'info legend'),
         grades = [-10, 30, 50, 70, 90],
         labels = [];
 
@@ -89,7 +89,7 @@ legend.onAdd = function (map) {
     div.style.borderRadius = '5px';
     div.innerHTML += '<h4>Depth (km)</h4>';
 
-    for (var i = 0; i < grades.length; i++) {
+    for (let i = 0; i < grades.length; i++) {
         div.innerHTML +=
             '<i style="background:' + chooseColor(grades[i] + 1) + '; width: 18px; height: 18px; float: left; margin-right: 8px; opacity: 0.75;"></i> ' +
             '<span style="line-height: 18px;">' + grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+') + '</span>';
