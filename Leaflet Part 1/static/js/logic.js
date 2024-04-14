@@ -52,8 +52,7 @@ legend.onAdd = function (map) {
         grades = [-10, 30, 50, 70, 90],
         labels = [];
 
-    // Set the background color of the legend to light beige
-    div.style.backgroundColor = '#f5f5dc';  // light beige
+    div.style.backgroundColor = '#f5f5dc';  
     div.style.padding = '6px';
     div.style.border = '1px solid rgba(0,0,0,0.2)';
     div.style.borderRadius = '5px';
