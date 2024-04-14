@@ -3,26 +3,71 @@ const satellite = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.pn
     attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 });
 
-const grayscale = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+// Define a custom Grayscale layer
+L.TileLayer.Grayscale = L.TileLayer.extend({
+    options: {
+        quotaRed: 21,
+        quotaGreen: 71,
+        quotaBlue: 8,
+        quotaDividerTune: 0,
+        quotaDivider: function() {
+            return this.quotaRed + this.quotaGreen + this.quotaBlue + this.quotaDividerTune;
+        }
+    },
+
+    initialize: function (url, options) {
+        options = options || {};
+        options.crossOrigin = true;
+        L.TileLayer.prototype.initialize.call(this, url, options);
+
+        this.on('tileload', function(e) {
+            this._makeGrayscale(e.tile);
+        });
+    },
+
+    _createTile: function () {
+        var tile = L.TileLayer.prototype._createTile.call(this);
+        tile.crossOrigin = "Anonymous";
+        return tile;
+    },
+
+    _makeGrayscale: function (img) {
+        if (img.getAttribute('data-grayscaled'))
+            return;
+
+        var canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+
+        var imgd = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var pix = imgd.data;
+        for (var i = 0, n = pix.length; i < n; i += 4) {
+            var gray = (this.options.quotaRed * pix[i] + this.options.quotaGreen * pix[i + 1] + this.options.quotaBlue * pix[i + 2]) / this.options.quotaDivider();
+            pix[i] = pix[i + 1] = pix[i + 2] = gray;
+        }
+        ctx.putImageData(imgd, 0, 0);
+        img.src = canvas.toDataURL();
+        img.setAttribute('data-grayscaled', true);
+    }
+});
+
+// Create an instance of the Grayscale layer
+const grayscale = new L.TileLayer.Grayscale('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 });
 
-const outdoors = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+const humanitarian = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+	attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Tiles style by <a href="https://www.hotosm.org/" target="_blank">Humanitarian OpenStreetMap Team</a> hosted by <a href="https://openstreetmap.fr/" target="_blank">OpenStreetMap France</a>'
 });
 
 // Creating a map object with base layers
 let myMap = L.map('map', {
     center: [0, 0],
     zoom: 2,
-    layers: [satellite, grayscale, outdoors]
+    layers: [satellite, grayscale, humanitarian]
 });
-
-const baseMaps = {
-    "Satellite": satellite,
-    "Grayscale": grayscale,
-    "Outdoors": outdoors
-};
 
 // Load tectonic plates data
 const tectonicPlatesURL = 'https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json';
@@ -31,7 +76,6 @@ let tectonicPlates = new L.LayerGroup();
 d3.json(tectonicPlatesURL).then(function(plateData) {
     L.geoJSON(plateData, {
         color: '#99ff66',
-        // color: "#5EDD1E",
         weight: 2
     }).addTo(tectonicPlates);
     tectonicPlates.addTo(myMap);
@@ -62,17 +106,18 @@ d3.json(url).then((data) => {
     L.geoJSON(data, {
         pointToLayer: function(feature, latlng) {
             return L.circle(latlng, {
+                color: chooseColor(feature.geometry.coordinates[2]),
                 fillColor: chooseColor(feature.geometry.coordinates[2]),
                 fillOpacity: 0.75,
                 radius: chooseRadius(feature.properties.mag),
                 stroke: false
             });
         },
-        // Binding a popup to each feature
         onEachFeature: function(feature, layer) {
             layer.bindPopup(`<h2>${feature.properties.place}</h2><hr><h3>Magnitude: ${feature.properties.mag}<br>Date: ${new Date(feature.properties.time)}</h3>`);
         }
-    }).addTo(myMap);
+    }).addTo(earthquakes);
+    earthquakes.addTo(myMap);
 });
 
 // Legend from part 1
@@ -101,9 +146,15 @@ legend.onAdd = function (map) {
 legend.addTo(myMap);
 
 // Layer control
+const baseMaps = {
+    "Satellite": satellite,
+    "Greyscale": grayscale,
+    "Humanitarian": humanitarian
+};
+
 const overlayMaps = {
     "Earthquakes": earthquakes,
     "Tectonic Plates": tectonicPlates
 };
 
-L.control.layers(baseMaps, overlayMaps).addTo(myMap);
+L.control.layers(baseMaps, overlayMaps, {collapsed: false}).addTo(myMap);
